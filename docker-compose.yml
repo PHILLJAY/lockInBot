@@ -1,0 +1,50 @@
+# Discord Task Reminder Bot - Production Docker Compose
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    container_name: task-reminder-bot
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-taskbot123}@db:5432/taskbot
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENVIRONMENT=production
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - taskbot-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: taskbot-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=taskbot
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-taskbot123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432" # Remove in production if not needed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d taskbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taskbot-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  taskbot-network:
+    driver: bridge
