@@ -28,13 +28,13 @@ class BakushinPersonality:
         self.slang_patterns = {
             "positive": [
                 "lets gooo",
-                "no cap thats fire",
+                "huge W",
                 "respect",
                 "W",
                 "built different",
                 "sheesh",
             ],
-            "skeptical": ["bruh", "cap 🧢", "be fr", "nah fam", "stop the cap"],
+            "skeptical": ["bruh", "cap 🧢", "be fr", "dude", "stop the cap"],
             "motivational": [
                 "lock in",
                 "time to lock in",
@@ -119,8 +119,7 @@ class BakushinPersonality:
         """Generate initial greeting"""
         if context.get("is_first_time", True):
             return (
-                "yooo still showing up even after traveling!\n"
-                "hey 🤨\n\n"
+                "hey :3\n\n"
                 'another person that wants bakushin to help them "lock in" huh?\n\n'
                 "whats ur name?"
             )
