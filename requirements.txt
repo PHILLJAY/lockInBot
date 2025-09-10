@@ -31,3 +31,9 @@ asyncpg>=0.28.0
 
 # Logging and Monitoring
 structlog>=23.1.0
+
+# Natural Language Processing
+regex>=2023.10.3
+
+# JSON handling for conversation state
+ujson>=5.8.0

@@ -20,3 +20,12 @@ python-dotenv>=1.0.0
 # Documentation
 sphinx>=7.1.0
 sphinx-rtd-theme>=1.3.0
+
+# Testing Utilities for NL features
+factory-boy>=3.3.0
+freezegun>=1.2.2
+responses>=0.23.0
+aioresponses>=0.7.4
+
+# Type checking for async code
+types-python-dateutil>=2.8.19

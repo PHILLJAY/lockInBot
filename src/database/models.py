@@ -3,7 +3,7 @@ Database models for the Discord Task Reminder Bot.
 """
 
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Optional, List, Dict
 from sqlalchemy import (
     Column,
     Integer,
@@ -81,6 +81,15 @@ class Task(Base):
         "Completion", back_populates="task", cascade="all, delete-orphan"
     )
 
+    # Enhanced fields for natural language task creation
+    generation_method: Mapped[Optional[str]] = Column(String(50), default="manual")
+    parent_request_id: Mapped[Optional[str]] = Column(
+        String(36)
+    )  # UUID for grouping related tasks
+    scheduling_pattern: Mapped[Optional[str]] = Column(
+        Text
+    )  # JSON string of original pattern
+
     def __repr__(self) -> str:
         return f"<Task(id={self.id}, name='{self.name}', user_id={self.user_id}, active={self.is_active})>"
 
@@ -153,3 +162,21 @@ class APIUsage(Base):
 
     def __repr__(self) -> str:
         return f"<APIUsage(id={self.id}, user_id={self.user_id}, endpoint='{self.endpoint}', tokens={self.tokens_used}, cost=${self.estimated_cost / 100:.4f})>"
+
+
+class DMConversation(Base):
+    """DM conversation state for multi-turn task creation."""
+
+    __tablename__ = "dm_conversations"
+
+    user_id: Mapped[int] = Column(BigInteger, primary_key=True)  # Discord user ID
+    state: Mapped[str] = Column(String(50), nullable=False)
+    context: Mapped[Dict] = Column(Text, nullable=False)  # JSON string
+    last_interaction: Mapped[datetime] = Column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    expires_at: Mapped[datetime] = Column(DateTime, nullable=False)
+    pending_tasks: Mapped[Optional[str]] = Column(Text)  # JSON string
+
+    def __repr__(self) -> str:
+        return f"<DMConversation(user_id={self.user_id}, state='{self.state}', expires_at={self.expires_at})>"

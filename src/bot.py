@@ -4,9 +4,12 @@ Core Discord bot implementation for the Task Reminder Bot.
 
 import logging
 import asyncio
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import discord
 from discord.ext import commands
+
+if TYPE_CHECKING:
+    from services.dm_conversation_manager import DMConversationManager
 
 from config import Config
 from database.connection import DatabaseManager, set_db_manager
@@ -31,6 +34,8 @@ class TaskReminderBot(commands.Bot):
         intents.message_content = True
         intents.guilds = True
         intents.guild_messages = True
+        intents.dm_messages = True
+        intents.dm_reactions = True
 
         # Initialize bot
         super().__init__(
@@ -50,6 +55,7 @@ class TaskReminderBot(commands.Bot):
         self.ai_handler: Optional[AIHandler] = None
         self.scheduler: Optional[TaskScheduler] = None
         self.streak_manager: Optional[StreakManager] = None
+        self.dm_conversation_manager: Optional["DMConversationManager"] = None
 
         # Bot state
         self.is_ready = False
@@ -71,6 +77,14 @@ class TaskReminderBot(commands.Bot):
             self.scheduler = TaskScheduler(self, self.db_manager, self.ai_handler)
             await self.scheduler.start()
             logger.info("Task scheduler initialized and started")
+
+            # Initialize DM conversation manager
+            from services.dm_conversation_manager import DMConversationManager
+
+            self.dm_conversation_manager = DMConversationManager(
+                self, self.db_manager, self.ai_handler
+            )
+            logger.info("DM conversation manager initialized")
 
             # Add command cogs
             await self.add_cog(UserCommands(self))
@@ -107,6 +121,34 @@ class TaskReminderBot(commands.Bot):
 
         self.is_ready = True
         logger.info("Bot is fully operational")
+
+    async def on_message(self, message):
+        """Handle all messages including DMs"""
+        if message.author.bot:
+            return
+
+        # Check if it's a DM
+        if isinstance(message.channel, discord.DMChannel):
+            await self.handle_dm_conversation(message)
+        else:
+            # Process commands for server messages
+            await self.process_commands(message)
+
+    async def handle_dm_conversation(self, message: discord.Message):
+        """Handle DM conversations for natural language task creation"""
+        if not self.dm_conversation_manager:
+            await message.channel.send(
+                "yo my brain isn't fully loaded yet, try again in a sec 🤖"
+            )
+            return
+
+        try:
+            await self.dm_conversation_manager.handle_dm_message(message)
+        except Exception as e:
+            logger.error(f"Error handling DM conversation: {e}")
+            await message.channel.send(
+                "oof something went wrong on my end, try again in a bit 🤖"
+            )
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """Called when the bot joins a new guild."""
@@ -219,3 +261,9 @@ class TaskReminderBot(commands.Bot):
         if not self.streak_manager:
             raise RuntimeError("Streak manager not initialized")
         return self.streak_manager
+
+    def get_dm_conversation_manager(self) -> "DMConversationManager":
+        """Get the DM conversation manager instance."""
+        if not self.dm_conversation_manager:
+            raise RuntimeError("DM conversation manager not initialized")
+        return self.dm_conversation_manager

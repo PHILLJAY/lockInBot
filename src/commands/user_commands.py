@@ -25,6 +25,60 @@ class UserCommands(commands.Cog):
         self.bot = bot
 
     @app_commands.command(
+        name="start", description="Start your journey with Bakushin AI"
+    )
+    async def start_command(self, interaction: discord.Interaction):
+        """Initialize DM conversation with user"""
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            # Try to send a DM to the user
+            try:
+                dm_channel = await interaction.user.create_dm()
+
+                # Check if user can receive DMs by sending a test message
+                await dm_channel.send("yooo testing if you can get DMs...")
+
+                # If successful, start the conversation
+                dm_manager = self.bot.get_dm_conversation_manager()
+
+                # Create a mock message for the conversation manager
+                class MockMessage:
+                    def __init__(self, user, channel, content):
+                        self.author = user
+                        self.channel = channel
+                        self.content = content
+
+                mock_message = MockMessage(interaction.user, dm_channel, "/start")
+                await dm_manager.handle_dm_message(mock_message)
+
+                # Send confirmation in server
+                await interaction.followup.send(
+                    "✅ Check your DMs! I've started a conversation with you there.\n"
+                    "That's where we'll set up your tasks and I'll send your reminders! 💪",
+                    ephemeral=True,
+                )
+
+            except discord.Forbidden:
+                # User has DMs disabled
+                await interaction.followup.send(
+                    "❌ I can't send you DMs! Here's how to fix it:\n\n"
+                    "1. Go to **User Settings** (gear icon)\n"
+                    "2. Click **Privacy & Safety**\n"
+                    "3. Enable **Allow direct messages from server members**\n"
+                    "4. Try `/start` again!\n\n"
+                    "I need DMs to have proper conversations with you about your goals 💬",
+                    ephemeral=True,
+                )
+
+        except Exception as e:
+            logger.error(f"Error in start command for user {interaction.user.id}: {e}")
+            await interaction.followup.send(
+                "❌ Something went wrong starting our conversation. Try again in a moment!",
+                ephemeral=True,
+            )
+
+    @app_commands.command(
         name="register", description="Register your account with the task reminder bot"
     )
     @app_commands.describe(
