@@ -593,50 +593,69 @@ class DMConversationManager:
                     session.add(user)
                     await session.flush()  # Get user ID
 
-                # Create tasks
+                # Create a single recurring task instead of multiple individual tasks
                 created_tasks = []
-                for task_data in conversation.pending_tasks:
-                    # Convert days_of_week to schedule format
-                    if task_data["days_of_week"]:
-                        # For now, create separate tasks for each day
-                        for day_index in task_data["days_of_week"]:
-                            day_names = [
-                                "Monday",
-                                "Tuesday",
-                                "Wednesday",
-                                "Thursday",
-                                "Friday",
-                                "Saturday",
-                                "Sunday",
-                            ]
-                            task_name = f"{task_data['name']} ({day_names[day_index]})"
 
-                            new_task = Task(
-                                user_id=message.author.id,
-                                name=task_name,
-                                description=task_data.get("description"),
-                                reminder_time=task_data["reminder_time"],
-                                timezone=user.timezone,
-                                is_active=True,
-                                created_at=datetime.utcnow(),
-                                generation_method="natural_language",
-                            )
-                            session.add(new_task)
-                            created_tasks.append(new_task)
-                    else:
-                        # Interval-based task
-                        new_task = Task(
-                            user_id=message.author.id,
-                            name=task_data["name"],
-                            description=task_data.get("description"),
-                            reminder_time=task_data["reminder_time"],
-                            timezone=user.timezone,
-                            is_active=True,
-                            created_at=datetime.utcnow(),
-                            generation_method="natural_language",
+                # Get the first task data to use as the basis for our recurring task
+                first_task_data = conversation.pending_tasks[0]
+
+                # Determine the base task name (without day-specific suffixes)
+                base_task_name = first_task_data["name"]
+                if " (" in base_task_name and base_task_name.endswith(")"):
+                    # Remove day-specific suffix like " (Monday)"
+                    base_task_name = base_task_name[: base_task_name.rfind(" (")]
+
+                # Collect all days of week from all tasks
+                all_days_of_week = set()
+                for task_data in conversation.pending_tasks:
+                    if task_data["days_of_week"]:
+                        all_days_of_week.update(task_data["days_of_week"])
+
+                # Sort the days for consistent ordering
+                all_days_of_week = sorted(list(all_days_of_week))
+
+                # Determine recurrence pattern
+                if all_days_of_week:
+                    # Weekly recurring task
+                    recurrence_pattern = "weekly"
+                    # Convert list of integers to comma-separated string
+                    days_of_week_str = ",".join(str(day) for day in all_days_of_week)
+                else:
+                    # Check if any task has interval_days
+                    interval_days = None
+                    for task_data in conversation.pending_tasks:
+                        if task_data.get("interval_days"):
+                            interval_days = task_data["interval_days"]
+                            break
+
+                    if interval_days:
+                        # Interval-based recurring task
+                        recurrence_pattern = (
+                            "daily"  # Using daily as base pattern for intervals
                         )
-                        session.add(new_task)
-                        created_tasks.append(new_task)
+                        days_of_week_str = None
+                    else:
+                        # Daily recurring task
+                        recurrence_pattern = "daily"
+                        days_of_week_str = None
+
+                # Create a single recurring task
+                new_task = Task(
+                    user_id=message.author.id,
+                    name=base_task_name,
+                    description=first_task_data.get("description"),
+                    reminder_time=first_task_data["reminder_time"],
+                    timezone=user.timezone,
+                    is_active=True,
+                    created_at=datetime.utcnow(),
+                    generation_method="natural_language",
+                    is_recurring=True,
+                    recurrence_pattern=recurrence_pattern,
+                    recurrence_interval=interval_days if interval_days else 1,
+                    days_of_week=days_of_week_str,
+                )
+                session.add(new_task)
+                created_tasks.append(new_task)
 
                 await session.commit()
 

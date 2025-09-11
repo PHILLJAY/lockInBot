@@ -90,6 +90,12 @@ class Task(Base):
         Text
     )  # JSON string of original pattern
 
+    # Recurring task fields
+    is_recurring: Mapped[bool] = Column(Boolean, default=False)
+    recurrence_pattern: Mapped[Optional[str]] = Column(String(20))  # daily, weekly, monthly, yearly
+    recurrence_interval: Mapped[Optional[int]] = Column(Integer, default=1)  # e.g., every 2 weeks
+    days_of_week: Mapped[Optional[str]] = Column(String(20))  # Comma-separated list of day numbers (0-6 for Mon-Sun)
+
     def __repr__(self) -> str:
         return f"<Task(id={self.id}, name='{self.name}', user_id={self.user_id}, active={self.is_active})>"
 
